@@ -1,7 +1,9 @@
-package com.github.ocaso1987.eater.parser;
+package com.github.ocaso1987.eater;
 
 import com.github.ocaso1987.eater.Parser;
 import com.github.ocaso1987.eater.exception.ReadException;
+import com.github.ocaso1987.eater.context.ByteSource;
+import com.github.ocaso1987.eater.context.CharSource;
 import com.github.ocaso1987.eater.context.ParseContext;
 import org.junit.jupiter.api.Test;
 
@@ -24,8 +26,8 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromBytes(new byte[]{1, 2, 3, 4, 5});
         byte[] result = bytes(3).parse(ctx);
         assertArrayEquals(new byte[]{1, 2, 3}, result);
-        assertEquals(3, ctx.position());
-        assertEquals(2, ctx.remainingBytes());
+        assertEquals(3, ctx.currentPosition());
+        assertEquals(2, ((ByteSource) ctx.getSource()).remainingBytes(ctx.currentPosition()));
     }
 
     @Test
@@ -33,7 +35,7 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromBytes(new byte[]{42});
         byte[] result = oneByte().parse(ctx);
         assertArrayEquals(new byte[]{42}, result);
-        assertEquals(1, ctx.position());
+        assertEquals(1, ctx.currentPosition());
     }
 
     @Test
@@ -42,7 +44,7 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromBytes("hello".getBytes(StandardCharsets.UTF_8));
         byte[] result = exactBytes(expected).parse(ctx);
         assertArrayEquals(expected, result);
-        assertEquals(3, ctx.position());
+        assertEquals(3, ctx.currentPosition());
     }
 
     @Test
@@ -50,8 +52,11 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromBytes(new byte[]{1, 2, 3, 0, 4, 5});
         byte[] result = bytesUntil((byte) 0).parse(ctx);
         assertArrayEquals(new byte[]{1, 2, 3}, result);
-        assertEquals(3, ctx.position());
-        assertEquals((byte) 0, ctx.readByte());
+        assertEquals(3, ctx.currentPosition());
+        ByteSource bs = (ByteSource) ctx.getSource();
+        int pos = ctx.currentPosition();
+        assertEquals((byte) 0, bs.readByte(pos));
+        ctx.setCurrentPosition(pos + 1);
     }
 
     @Test
@@ -59,14 +64,14 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromBytes("Hi".getBytes(StandardCharsets.UTF_8));
         String result = bytesAsUtf8(2).parse(ctx);
         assertEquals("Hi", result);
-        assertEquals(2, ctx.position());
+        assertEquals(2, ctx.currentPosition());
     }
 
     @Test
     void bytes_insufficient_throwsReadExceptionAndKeepsPosition() {
         ParseContext ctx = ParseContext.fromBytes(new byte[]{1, 2, 3});
         assertThrows(ReadException.class, () -> bytes(5).parse(ctx));
-        assertEquals(0, ctx.position());
+        assertEquals(0, ctx.currentPosition());
     }
 
     // ---------- chars / oneChar / exactString / charsUntil ----------
@@ -76,21 +81,21 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromChars("hello");
         String result = chars(3).parse(ctx);
         assertEquals("hel", result);
-        assertEquals(3, ctx.position());
+        assertEquals(3, ctx.currentPosition());
     }
 
     @Test
     void oneChar_consumesOne_returnsChar() throws Exception {
         ParseContext ctx = ParseContext.fromChars("x");
         assertEquals('x', oneChar().parse(ctx));
-        assertEquals(1, ctx.position());
+        assertEquals(1, ctx.currentPosition());
     }
 
     @Test
     void exactString_match_consumesAndReturns() throws Exception {
         ParseContext ctx = ParseContext.fromChars("hello world");
         assertEquals("hello", exactString("hello").parse(ctx));
-        assertEquals(5, ctx.position());
+        assertEquals(5, ctx.currentPosition());
         assertEquals(" world", exactString(" world").parse(ctx));
     }
 
@@ -98,8 +103,11 @@ class ParsersTest {
     void charsUntil_delimiter_returnsSegmentWithoutConsumingDelimiter() throws Exception {
         ParseContext ctx = ParseContext.fromChars("a,b,c");
         assertEquals("a", charsUntil(',').parse(ctx));
-        assertEquals(1, ctx.position());
-        ctx.readChar();
+        assertEquals(1, ctx.currentPosition());
+        CharSource cs = (CharSource) ctx.getSource();
+        int p = ctx.currentPosition();
+        cs.readChar(p);
+        ctx.setCurrentPosition(p + 1);
         assertEquals("b", charsUntil(',').parse(ctx));
     }
 
@@ -107,7 +115,7 @@ class ParsersTest {
     void chars_insufficient_throwsReadExceptionAndKeepsPosition() {
         ParseContext ctx = ParseContext.fromChars("ab");
         assertThrows(ReadException.class, () -> chars(5).parse(ctx));
-        assertEquals(0, ctx.position());
+        assertEquals(0, ctx.currentPosition());
     }
 
     // ---------- optional ----------
@@ -117,7 +125,7 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromChars("ab");
         String result = optional(exactString("ab")).parse(ctx);
         assertEquals("ab", result);
-        assertEquals(2, ctx.position());
+        assertEquals(2, ctx.currentPosition());
     }
 
     @Test
@@ -125,7 +133,7 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromChars("ab");
         String result = optional(exactString("xy")).parse(ctx);
         assertNull(result);
-        assertEquals(0, ctx.position());
+        assertEquals(0, ctx.currentPosition());
     }
 
     // ---------- many (变参) ----------
@@ -135,7 +143,7 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromChars("hello world");
         List<String> list = many(exactString("hello"), exactString(" world")).parse(ctx);
         assertEquals(List.of("hello", " world"), list);
-        assertEquals(11, ctx.position());
+        assertEquals(11, ctx.currentPosition());
     }
 
     // ---------- many (单解析器) ----------
@@ -146,7 +154,7 @@ class ParsersTest {
         Parser<List<String>> p = many(exactString("a"));
         List<String> list = p.parse(ctx);
         assertEquals(List.of("a", "a", "a"), list);
-        assertEquals(3, ctx.position());
+        assertEquals(3, ctx.currentPosition());
     }
 
     // ---------- choose ----------
@@ -156,7 +164,7 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromChars("world");
         Parser<String> p = choose(exactString("hello"), exactString("world"));
         assertEquals("world", p.parse(ctx));
-        assertEquals(5, ctx.position());
+        assertEquals(5, ctx.currentPosition());
     }
 
     @Test
@@ -173,7 +181,7 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromChars("ABC");
         List<String> list = repeat(map(oneChar(), c -> String.valueOf(c)), 3).parse(ctx);
         assertEquals(List.of("A", "B", "C"), list);
-        assertEquals(3, ctx.position());
+        assertEquals(3, ctx.currentPosition());
     }
 
     // ---------- map ----------
@@ -183,7 +191,7 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromChars("123");
         int n = map(chars(3), s -> Integer.parseInt(s)).parse(ctx);
         assertEquals(123, n);
-        assertEquals(3, ctx.position());
+        assertEquals(3, ctx.currentPosition());
     }
 
     // ---------- peek ----------
@@ -193,7 +201,7 @@ class ParsersTest {
         ParseContext ctx = ParseContext.fromChars("ab");
         String result = peek(exactString("ab")).parse(ctx);
         assertEquals("ab", result);
-        assertEquals(0, ctx.position());
+        assertEquals(0, ctx.currentPosition());
         assertEquals("ab", exactString("ab").parse(ctx));
     }
 
@@ -201,28 +209,28 @@ class ParsersTest {
     void peek_readException_returnsNullAndKeepsPosition() throws Exception {
         ParseContext ctx = ParseContext.fromChars("ab");
         assertNull(peek(exactString("xy")).parse(ctx));
-        assertEquals(0, ctx.position());
+        assertEquals(0, ctx.currentPosition());
     }
 
     // ---------- ParseContext 边界与模式 ----------
 
     @Test
-    void restorePosition_outOfRange_throwsIllegalArgumentException() {
+    void setCurrentPosition_outOfRange_throwsIllegalArgumentException() {
         ParseContext ctx = ParseContext.fromChars("abc");
-        assertThrows(IllegalArgumentException.class, () -> ctx.restorePosition(10));
-        assertThrows(IllegalArgumentException.class, () -> ctx.restorePosition(-1));
+        assertThrows(IllegalArgumentException.class, () -> ctx.setCurrentPosition(10));
+        assertThrows(IllegalArgumentException.class, () -> ctx.setCurrentPosition(-1));
     }
 
     @Test
-    void readByte_inCharMode_throwsUnsupportedOperationException() {
+    void byteSource_requiredForByteRead_throwsClassCastWhenCharSource() {
         ParseContext ctx = ParseContext.fromChars("a");
-        assertThrows(UnsupportedOperationException.class, () -> ctx.readByte());
+        assertThrows(ClassCastException.class, () -> { ByteSource s = (ByteSource) ctx.getSource(); });
     }
 
     @Test
-    void readChar_inByteMode_throwsUnsupportedOperationException() {
+    void charSource_requiredForCharRead_throwsClassCastWhenByteSource() {
         ParseContext ctx = ParseContext.fromBytes(new byte[]{97});
-        assertThrows(UnsupportedOperationException.class, () -> ctx.readChar());
+        assertThrows(ClassCastException.class, () -> { CharSource s = (CharSource) ctx.getSource(); });
     }
 
     // ---------- 字节流用例：魔数 + 长度 + 负载 ----------

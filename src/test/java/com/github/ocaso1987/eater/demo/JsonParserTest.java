@@ -1,8 +1,9 @@
-package com.github.ocaso1987.eater.parser;
+package com.github.ocaso1987.eater.demo;
 
 import com.github.ocaso1987.eater.Parser;
 import com.github.ocaso1987.eater.exception.ReadException;
 import com.github.ocaso1987.eater.exception.ParseException;
+import com.github.ocaso1987.eater.context.CharSource;
 import com.github.ocaso1987.eater.context.ParseContext;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +14,7 @@ import static com.github.ocaso1987.eater.Parsers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** JSON 解析用例：简单对象（键值对为双引号字符串）的解析示例与断言。 */
-class JsonParserExampleTest {
+class JsonParserTest {
 
     static Parser<String> quotedString() {
         return ctx -> {
@@ -34,8 +35,9 @@ class JsonParserExampleTest {
         Parser<String> keyParser = quotedString();
         Parser<String> valueParser = quotedString();
 
+        CharSource src = (CharSource) ctx.getSource();
         boolean first = true;
-        while (ctx.hasChars(1)) {
+        while (src.remainingChars(ctx.currentPosition()) >= 1) {
             if (!first) {
                 if (optional(exactString(",")).parse(ctx) == null) break;
             }

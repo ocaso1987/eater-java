@@ -18,11 +18,11 @@ public final class ComboParsers {
     /** 成功则返回结果；仅当 {@link ReadException} 时回退并返回 null，{@link ParseException} 原样抛出。 */
     public static <R> Parser<R> optional(Parser<R> p) {
         return ctx -> {
-            int pos = ctx.position();
+            int pos = ctx.currentPosition();
             try {
                 return p.parse(ctx);
             } catch (ReadException e) {
-                ctx.restorePosition(pos);
+                ctx.setCurrentPosition(pos);
                 return null;
             }
         };
@@ -33,11 +33,11 @@ public final class ComboParsers {
         return ctx -> {
             List<R> list = new ArrayList<>();
             for (; ; ) {
-                int pos = ctx.position();
+                int pos = ctx.currentPosition();
                 try {
                     list.add(p.parse(ctx));
                 } catch (ReadException e) {
-                    ctx.restorePosition(pos);
+                    ctx.setCurrentPosition(pos);
                     break;
                 }
             }
@@ -70,11 +70,11 @@ public final class ComboParsers {
         return ctx -> {
             ReadException lastRead = null;
             for (Parser<R> parser : parsers) {
-                int pos = ctx.position();
+                int pos = ctx.currentPosition();
                 try {
                     return parser.parse(ctx);
                 } catch (ReadException e) {
-                    ctx.restorePosition(pos);
+                    ctx.setCurrentPosition(pos);
                     lastRead = e;
                 }
             }

@@ -14,13 +14,13 @@ public final class CommonParsers {
     /** 执行 p 但不消费输入；成功则恢复位置并返回结果，仅当 {@link ReadException} 时恢复并返回 null，{@link ParseException} 原样抛出。 */
     public static <R> Parser<R> peek(Parser<R> p) {
         return ctx -> {
-            int pos = ctx.position();
+            int pos = ctx.currentPosition();
             try {
                 R result = p.parse(ctx);
-                ctx.restorePosition(pos);
+                ctx.setCurrentPosition(pos);
                 return result;
             } catch (ReadException e) {
-                ctx.restorePosition(pos);
+                ctx.setCurrentPosition(pos);
                 return null;
             }
         };

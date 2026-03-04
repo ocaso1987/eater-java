@@ -1,124 +1,131 @@
 package com.github.ocaso1987.eater.context;
 
-import com.github.ocaso1987.eater.Parser;
-import com.github.ocaso1987.eater.exception.ReadException;
-
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 /**
- * 解析上下文：持有 {@link ParseSource} 与当前读取位置，对外提供顺序读与位置回退，供 {@link Parser} 使用。
+ * 解析上下文：仅持有源对象与当前解析状态（如 currentPosition、currentScope），不提供源的读取方式；
+ * 具体读取由调用方通过 {@link #getSource()} 获取源后自行按类型调用 ByteSource/CharSource/ObjectSource 的方法。
+ * {@link #getCurrentScope()} 表示对象源解析时的当前范围（含 parent 与 target），主要用于 {@link ObjectSource} 的层级解析。
  */
 public final class ParseContext {
 
-    private final ParseSource source;
-    private int position;
+    private final ParseSource<?> source;
+    private int currentPosition;
+    private ParseScope currentScope;
 
-    private ParseContext(ParseSource source) {
+    ParseContext(ParseSource<?> source) {
         this.source = source;
-        this.position = 0;
+        this.currentPosition = 0;
+        this.currentScope = null;
     }
 
-    /** 返回当前数据源。 */
-    public ParseSource getSource() {
+    ParseContext(ParseSource<?> source, ParseScope initialScope) {
+        this.source = source;
+        this.currentPosition = 0;
+        this.currentScope = initialScope;
+    }
+
+    /** 当前持有的源对象（{@link ByteSource} / {@link CharSource} / {@link ObjectSource}）。 */
+    public ParseSource<?> getSource() {
         return source;
     }
 
-    /** 当前读取位置（从 0 开始）。 */
-    public int position() {
-        return position;
+    /** 当前解析位置（仅字节源/字符源有意义）。 */
+    public int currentPosition() {
+        return currentPosition;
     }
 
     /**
-     * 将位置重置为指定值（用于回退，如 optional 失败时）。
-     * @throws IllegalArgumentException 若 position 不在 [0, getSource().getLength()] 内
+     * 设置当前解析位置（用于回退或推进；仅字节源/字符源支持，对象源抛 {@link UnsupportedOperationException}）。
      */
-    public void restorePosition(int position) {
-        source.validatePosition(position);
-        this.position = position;
+    public void setCurrentPosition(int position) {
+        if (source instanceof ByteSource b) {
+            b.validatePosition(position);
+        } else if (source instanceof CharSource c) {
+            c.validatePosition(position);
+        } else {
+            throw new UnsupportedOperationException("setCurrentPosition not supported for " + source.getClass().getSimpleName());
+        }
+        this.currentPosition = position;
     }
 
-    /** 剩余可读字节数（仅字节模式有效）。 */
-    public int remainingBytes() {
-        return source.remainingBytes(position);
+    // ---------- 当前范围（主要用于 ObjectSource） ----------
+
+    /** 当前解析范围（含 parent 与 target）；非对象源或未设置时为 null。 */
+    public ParseScope getCurrentScope() {
+        return currentScope;
     }
 
-    /** 读取一个字节并推进位置。仅字节模式，不足时抛 {@link ReadException}。 */
-    public byte readByte() throws ReadException {
-        byte b = source.readByte(position);
-        position++;
-        return b;
+    /** 设置当前解析范围。 */
+    public void setCurrentScope(ParseScope scope) {
+        this.currentScope = scope;
     }
 
-    /** 读取 n 个字节到新数组并推进位置。仅字节模式，不足时抛 {@link ReadException}。 */
-    public byte[] readBytes(int n) throws ReadException {
-        byte[] arr = source.readBytes(position, n);
-        position += n;
-        return arr;
+    /**
+     * 进入子范围：以当前 scope 为父、以 childTarget 为 target 创建新 scope 并设为当前范围。
+     * 当前 scope 为 null 时，创建根级 scope（parent 为 null）。
+     *
+     * @param childTarget 下级解析目标对象
+     * @return 新的当前 scope
+     */
+    public ParseScope enterScope(Object childTarget) {
+        if (currentScope == null) {
+            currentScope = new ParseScope(null, childTarget);
+        } else {
+            currentScope = currentScope.enter(childTarget);
+        }
+        return currentScope;
     }
 
-    /** 是否还有至少 n 个字节可读。 */
-    public boolean hasBytes(int n) {
-        return source.remainingBytes(position) >= n;
-    }
-
-    /** 剩余可读字符数（仅字符模式有效）。 */
-    public int remainingChars() {
-        return source.remainingChars(position);
-    }
-
-    /** 读取一个字符并推进位置。仅字符模式，不足时抛 {@link ReadException}。 */
-    public char readChar() throws ReadException {
-        char c = source.readChar(position);
-        position++;
-        return c;
-    }
-
-    /** 读取 n 个字符到新数组并推进位置。仅字符模式，不足时抛 {@link ReadException}。 */
-    public char[] readChars(int n) throws ReadException {
-        char[] arr = source.readChars(position, n);
-        position += n;
-        return arr;
-    }
-
-    /** 是否还有至少 n 个字符可读。 */
-    public boolean hasChars(int n) {
-        return source.remainingChars(position) >= n;
+    /**
+     * 退出当前范围，恢复到父 scope；若当前已是根或 null，则设为 null。
+     */
+    public void exitScope() {
+        currentScope = currentScope == null ? null : currentScope.exit();
     }
 
     // ---------- 工厂：字节流 ----------
 
-    /** 基于字节数组构造。 */
     public static ParseContext fromBytes(byte[] data) {
         return fromBytes(data, 0, data.length);
     }
 
-    /** 基于字节数组指定区间构造。 */
     public static ParseContext fromBytes(byte[] data, int offset, int length) {
-        return new ParseContext(ParseSource.fromBytes(data, offset, length));
+        return new ParseContext(ByteSource.fromBytes(data, offset, length));
     }
 
-    /** 基于 ByteBuffer 构造。 */
     public static ParseContext fromByteBuffer(ByteBuffer buffer) {
-        return new ParseContext(ParseSource.fromByteBuffer(buffer));
+        return new ParseContext(ByteSource.fromByteBuffer(buffer));
     }
 
-    /** 将字符串按 UTF-8 编码为字节后以字节模式解析。 */
-    public static ParseContext fromString(CharSequence text) {
-        return fromString(text, StandardCharsets.UTF_8);
+    public static ParseContext fromEncodedBytes(CharSequence text, Charset charset) {
+        return new ParseContext(ByteSource.fromString(
+            Objects.requireNonNull(text, "text"),
+            Objects.requireNonNull(charset, "charset")));
     }
 
-    /** 将字符串按指定编码为字节后以字节模式解析。 */
-    public static ParseContext fromString(CharSequence text, Charset charset) {
-        return new ParseContext(ParseSource.fromString(text, charset));
+    public static ParseContext fromEncodedBytesUtf8(CharSequence text) {
+        return fromEncodedBytes(text, StandardCharsets.UTF_8);
     }
 
     // ---------- 工厂：字符流 ----------
 
-    /** 基于字符序列构造（字符模式，不经字节编码）。 */
+    public static ParseContext fromString(CharSequence text) {
+        return new ParseContext(CharSource.fromChars(Objects.requireNonNull(text, "text")));
+    }
+
     public static ParseContext fromChars(CharSequence text) {
-        return new ParseContext(ParseSource.fromChars(text));
+        return new ParseContext(CharSource.fromChars(Objects.requireNonNull(text, "text")));
+    }
+
+    // ---------- 工厂：对象源 ----------
+
+    /** 从根对象创建上下文，初始 currentScope 为以 root 为 target 的根 scope。 */
+    public static ParseContext fromObject(Object root) {
+        ObjectSource src = new ObjectSource(Objects.requireNonNull(root, "root"));
+        return new ParseContext(src, new ParseScope(null, root));
     }
 }

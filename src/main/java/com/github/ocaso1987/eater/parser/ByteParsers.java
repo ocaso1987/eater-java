@@ -1,6 +1,8 @@
 package com.github.ocaso1987.eater.parser;
 
 import com.github.ocaso1987.eater.Parser;
+import com.github.ocaso1987.eater.context.ByteSource;
+import com.github.ocaso1987.eater.context.ParseContext;
 import com.github.ocaso1987.eater.exception.ReadException;
 
 import java.nio.charset.Charset;
@@ -15,54 +17,66 @@ public final class ByteParsers {
 
     /** 解析恰好 n 个字节，返回字节数组。 */
     public static Parser<byte[]> bytes(int n) {
-        return ctx -> ctx.readBytes(n);
+        return ctx -> {
+            ByteSource s = (ByteSource) ctx.getSource();
+            int pos = ctx.currentPosition();
+            byte[] arr = s.readBytes(pos, n);
+            ctx.setCurrentPosition(pos + n);
+            return arr;
+        };
     }
 
     /** 解析一个字节，返回长度为 1 的 byte 数组。 */
     public static Parser<byte[]> oneByte() {
-        return ctx -> new byte[]{ctx.readByte()};
+        return ctx -> {
+            ByteSource s = (ByteSource) ctx.getSource();
+            int pos = ctx.currentPosition();
+            byte b = s.readByte(pos);
+            ctx.setCurrentPosition(pos + 1);
+            return new byte[]{b};
+        };
     }
 
     /** 必须匹配给定字节序列，否则抛 {@link ReadException}；匹配时消耗并返回该序列的副本。 */
     public static Parser<byte[]> exactBytes(byte[] expected) {
         return ctx -> {
+            ByteSource s = (ByteSource) ctx.getSource();
             int n = expected.length;
-            if (!ctx.hasBytes(n)) {
+            int pos = ctx.currentPosition();
+            if (s.remainingBytes(pos) < n) {
                 ReadException ex = new ReadException("insufficient bytes for expected length " + n);
-                ex.addContextValue("position", ctx.position());
+                ex.addContextValue("position", pos);
                 ex.addContextValue("required", n);
                 throw ex;
             }
-            int pos = ctx.position();
             for (int i = 0; i < n; i++) {
-                byte b = ctx.readByte();
+                byte b = s.readByte(pos + i);
                 if (b != expected[i]) {
-                    ctx.restorePosition(pos);
                     ReadException ex = new ReadException("byte mismatch at index " + i + ": expected " + expected[i] + ", got " + b);
                     ex.addContextValue("position", pos + i);
                     ex.addContextValue("index", i);
                     throw ex;
                 }
             }
+            ctx.setCurrentPosition(pos + n);
             return expected.clone();
         };
     }
 
-    /** 解析到遇到分隔字节或末尾，返回中间字节（不包含分隔符）；遇分隔符即停且不消费。两遍扫描避免中间缓冲扩容。 */
+    /** 解析到遇到分隔字节或末尾，返回中间字节（不包含分隔符）；遇分隔符即停且不消费。 */
     public static Parser<byte[]> bytesUntil(byte delimiter) {
         return ctx -> {
-            int pos = ctx.position();
+            ByteSource s = (ByteSource) ctx.getSource();
+            int pos = ctx.currentPosition();
             int count = 0;
-            while (ctx.hasBytes(1)) {
-                byte b = ctx.readByte();
-                if (b == delimiter) {
-                    ctx.restorePosition(pos + count);
-                    break;
-                }
+            while (s.remainingBytes(pos + count) >= 1) {
+                byte b = s.readByte(pos + count);
+                if (b == delimiter) break;
                 count++;
             }
-            ctx.restorePosition(pos);
-            return ctx.readBytes(count);
+            byte[] arr = s.readBytes(pos, count);
+            ctx.setCurrentPosition(pos + count);
+            return arr;
         };
     }
 

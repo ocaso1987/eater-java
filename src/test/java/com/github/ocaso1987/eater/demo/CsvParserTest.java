@@ -1,8 +1,9 @@
-package com.github.ocaso1987.eater.parser;
+package com.github.ocaso1987.eater.demo;
 
 import com.github.ocaso1987.eater.Parser;
 import com.github.ocaso1987.eater.exception.ParseException;
 import com.github.ocaso1987.eater.exception.ReadException;
+import com.github.ocaso1987.eater.context.CharSource;
 import com.github.ocaso1987.eater.context.ParseContext;
 import org.junit.jupiter.api.Test;
 
@@ -13,32 +14,35 @@ import static com.github.ocaso1987.eater.Parsers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** CSV 解析用例：多行、带引号与逗号内引号的 CSV 解析示例与断言。 */
-class CsvParserExampleTest {
+class CsvParserTest {
 
     record CsvRow(String name, int age, String city, boolean active, String note) {}
 
     static Parser<String> csvQuotedField() {
         return ctx -> {
             exactString("\"").parse(ctx);
+            CharSource s = (CharSource) ctx.getSource();
             StringBuilder sb = new StringBuilder();
             while (true) {
-                if (!ctx.hasChars(1)) {
+                int pos = ctx.currentPosition();
+                if (s.remainingChars(pos) < 1) {
                     ParseException ex = new ParseException("unclosed quoted field");
-                    ex.addContextValue("position", ctx.position());
+                    ex.addContextValue("position", pos);
                     throw ex;
                 }
-                char c = ctx.readChar();
+                char c = s.readChar(pos);
+                ctx.setCurrentPosition(pos + 1);
                 if (c != '"') {
                     sb.append(c);
                     continue;
                 }
-                int pos = ctx.position();
-                if (!ctx.hasChars(1)) break;
-                char next = ctx.readChar();
+                if (s.remainingChars(ctx.currentPosition()) < 1) break;
+                int nextPos = ctx.currentPosition();
+                char next = s.readChar(nextPos);
                 if (next == '"') {
                     sb.append('"');
+                    ctx.setCurrentPosition(nextPos + 1);
                 } else {
-                    ctx.restorePosition(pos);
                     break;
                 }
             }
@@ -48,14 +52,16 @@ class CsvParserExampleTest {
 
     static Parser<String> csvUnquotedField() {
         return ctx -> {
+            CharSource s = (CharSource) ctx.getSource();
             StringBuilder sb = new StringBuilder();
-            while (ctx.hasChars(1)) {
-                char c = ctx.readChar();
+            while (s.remainingChars(ctx.currentPosition()) >= 1) {
+                int pos = ctx.currentPosition();
+                char c = s.readChar(pos);
                 if (c == ',' || c == '\n') {
-                    ctx.restorePosition(ctx.position() - 1);
                     break;
                 }
                 sb.append(c);
+                ctx.setCurrentPosition(pos + 1);
             }
             return sb.toString().trim();
         };
@@ -75,14 +81,14 @@ class CsvParserExampleTest {
 
     static Parser<String> csvUnquotedFieldRestOfLine() {
         return ctx -> {
+            CharSource s = (CharSource) ctx.getSource();
             StringBuilder sb = new StringBuilder();
-            while (ctx.hasChars(1)) {
-                char c = ctx.readChar();
-                if (c == '\n') {
-                    ctx.restorePosition(ctx.position() - 1);
-                    break;
-                }
+            while (s.remainingChars(ctx.currentPosition()) >= 1) {
+                int pos = ctx.currentPosition();
+                char c = s.readChar(pos);
+                if (c == '\n') break;
                 sb.append(c);
+                ctx.setCurrentPosition(pos + 1);
             }
             return sb.toString().trim();
         };
@@ -92,7 +98,12 @@ class CsvParserExampleTest {
         return ctx -> {
             String q = optional(csvQuotedField()).parse(ctx);
             String s = q != null ? q : csvUnquotedFieldRestOfLine().parse(ctx);
-            if (ctx.hasChars(1)) ctx.readChar();
+            CharSource src = (CharSource) ctx.getSource();
+            if (src.remainingChars(ctx.currentPosition()) >= 1) {
+                int p = ctx.currentPosition();
+                src.readChar(p);
+                ctx.setCurrentPosition(p + 1);
+            }
             return s;
         };
     }
@@ -118,12 +129,13 @@ class CsvParserExampleTest {
 
     static <R> Parser<List<R>> manyUntilEnd(Parser<R> p) {
         return ctx -> {
+            CharSource s = (CharSource) ctx.getSource();
             List<R> list = new ArrayList<>();
             for (; ; ) {
                 R result = optional(p).parse(ctx);
                 if (result == null) break;
                 list.add(result);
-                if (!ctx.hasChars(1)) break;
+                if (s.remainingChars(ctx.currentPosition()) < 1) break;
             }
             return list;
         };

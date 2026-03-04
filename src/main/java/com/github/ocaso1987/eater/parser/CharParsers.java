@@ -1,6 +1,8 @@
 package com.github.ocaso1987.eater.parser;
 
 import com.github.ocaso1987.eater.Parser;
+import com.github.ocaso1987.eater.context.CharSource;
+import com.github.ocaso1987.eater.context.ParseContext;
 import com.github.ocaso1987.eater.exception.ReadException;
 
 /**
@@ -12,54 +14,66 @@ public final class CharParsers {
 
     /** 解析恰好 n 个字符，返回字符串。 */
     public static Parser<String> chars(int n) {
-        return ctx -> new String(ctx.readChars(n));
+        return ctx -> {
+            CharSource s = (CharSource) ctx.getSource();
+            int pos = ctx.currentPosition();
+            char[] arr = s.readChars(pos, n);
+            ctx.setCurrentPosition(pos + n);
+            return new String(arr);
+        };
     }
 
     /** 解析一个字符。 */
     public static Parser<Character> oneChar() {
-        return ctx -> ctx.readChar();
+        return ctx -> {
+            CharSource s = (CharSource) ctx.getSource();
+            int pos = ctx.currentPosition();
+            char c = s.readChar(pos);
+            ctx.setCurrentPosition(pos + 1);
+            return c;
+        };
     }
 
     /** 必须匹配给定字符串，否则抛 {@link ReadException}；匹配时消耗并返回该字符串。 */
     public static Parser<String> exactString(String expected) {
         return ctx -> {
+            CharSource s = (CharSource) ctx.getSource();
             int n = expected.length();
-            if (!ctx.hasChars(n)) {
+            int pos = ctx.currentPosition();
+            if (s.remainingChars(pos) < n) {
                 ReadException ex = new ReadException("insufficient chars for string \"" + expected + "\"");
-                ex.addContextValue("position", ctx.position());
+                ex.addContextValue("position", pos);
                 ex.addContextValue("expected", expected);
                 throw ex;
             }
-            int pos = ctx.position();
             for (int i = 0; i < n; i++) {
-                char c = ctx.readChar();
+                char c = s.readChar(pos + i);
                 if (c != expected.charAt(i)) {
-                    ctx.restorePosition(pos);
                     ReadException ex = new ReadException("char mismatch at index " + i + ": expected '" + expected.charAt(i) + "', got '" + c + "'");
                     ex.addContextValue("position", pos + i);
                     ex.addContextValue("index", i);
                     throw ex;
                 }
             }
+            ctx.setCurrentPosition(pos + n);
             return expected;
         };
     }
 
-    /** 解析到遇到分隔字符或末尾，返回中间字符串（不包含分隔符）；不消费分隔符。两遍扫描避免 StringBuilder 扩容。 */
+    /** 解析到遇到分隔字符或末尾，返回中间字符串（不包含分隔符）；不消费分隔符。 */
     public static Parser<String> charsUntil(char delimiter) {
         return ctx -> {
-            int pos = ctx.position();
+            CharSource s = (CharSource) ctx.getSource();
+            int pos = ctx.currentPosition();
             int count = 0;
-            while (ctx.hasChars(1)) {
-                char c = ctx.readChar();
-                if (c == delimiter) {
-                    ctx.restorePosition(pos + count);
-                    break;
-                }
+            while (s.remainingChars(pos + count) >= 1) {
+                char c = s.readChar(pos + count);
+                if (c == delimiter) break;
                 count++;
             }
-            ctx.restorePosition(pos);
-            return new String(ctx.readChars(count));
+            String result = new String(s.readChars(pos, count));
+            ctx.setCurrentPosition(pos + count);
+            return result;
         };
     }
 }
