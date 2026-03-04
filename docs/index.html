@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eater-Java — 为 Java 而生的组合子式解析库</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="docs-nav">
+    <div class="docs-nav-inner">
+      <a class="logo" href="index.html">Eater-Java</a>
+      <div class="docs-nav-links">
+        <a href="index.html" class="active">主页</a>
+        <a href="intro.html">介绍</a>
+        <a href="guide.html">指南</a>
+        <a href="examples.html">样例</a>
+        <a href="api.html">API</a>
+        <a href="https://github.com/ocaso1987/eater-java" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="docs-main">
+    <section class="hero">
+      <h1>为 Java 而生的<br>组合子式解析库</h1>
+      <p class="tagline">通过 <code>Parser&lt;R&gt;</code> 从 <code>ParseContext</code> 消费输入并返回结构化结果，支持字节流、字符流、可选、多选、重复与映射，适用于协议解析与简单 CSV/JSON。</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="intro.html">快速开始</a>
+        <a class="btn btn-outline" href="https://github.com/ocaso1987/eater-java" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </section>
+
+    <h2>重新定义解析体验</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <h3>多源抽象</h3>
+        <p><code>ParseSource&lt;T&gt;</code> 仅暴露 getSource()；ByteSource、CharSource、ObjectSource 各自提供字节/字符/对象读方法。</p>
+      </div>
+      <div class="feature-card">
+        <h3>组合子 API</h3>
+        <p>optional、many、choose、repeat、map、peek 等，自由组合出复杂解析逻辑，无需手写状态机。</p>
+      </div>
+      <div class="feature-card">
+        <h3>位置与回退</h3>
+        <p>currentPosition() / setCurrentPosition(int)，解析失败时可回退；optional 在 ReadException 时自动回退并返回 null。</p>
+      </div>
+      <div class="feature-card">
+        <h3>对象源与 Scope</h3>
+        <p>fromObject(root)、enterScope / exitScope，用于层级对象解析与 OGNL 表达式取值。</p>
+      </div>
+    </div>
+
+    <h2>快速示例</h2>
+    <pre class="pre-block"><code>import static com.github.ocaso1987.eater.Parsers.*;
+
+ParseContext ctx = ParseContext.fromChars("hello world");
+String first = exactString("hello").parse(ctx);  // "hello"
+String rest  = exactString(" world").parse(ctx); // " world"</code></pre>
+    <p><a href="intro.html">下载与开始 →</a></p>
+  </main>
+
+  <footer class="docs-footer">
+    <a href="https://github.com/ocaso1987/eater-java">eater-java</a> · 组合子式解析库 · 要求 Java 17+
+  </footer>
+</body>
+</html>

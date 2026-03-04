@@ -161,6 +161,90 @@ class CsvParserTest {
         };
     }
 
+    // ---------- 数字 CSV（无表头、无引号，逗号分隔） ----------
+
+    /** 解析「逗号 + 字段」，返回字段；用于 many 得到后续列。 */
+    static Parser<String> commaThenField() {
+        return ctx -> {
+            exactString(",").parse(ctx);
+            return csvUnquotedField().parse(ctx);
+        };
+    }
+
+    /** 解析一行逗号分隔的数值字段（可含负号、小数点），返回该行字段列表；行末换行可选消费。 */
+    static Parser<List<String>> numericCsvRow() {
+        return ctx -> {
+            String first = csvUnquotedField().parse(ctx);
+            List<String> rest = many(commaThenField()).parse(ctx);
+            List<String> row = new ArrayList<>();
+            row.add(first);
+            row.addAll(rest);
+            optional(exactString("\n")).parse(ctx);
+            return row;
+        };
+    }
+
+    /** 解析多行数字 CSV，返回行列表；跳过全空行。 */
+    static Parser<List<List<String>>> numericCsvFileParser() {
+        return ctx -> {
+            CharSource s = (CharSource) ctx.getSource();
+            List<List<String>> rows = new ArrayList<>();
+            while (s.remainingChars(ctx.currentPosition()) >= 1) {
+                String first = csvUnquotedField().parse(ctx);
+                List<String> rest = many(commaThenField()).parse(ctx);
+                List<String> row = new ArrayList<>();
+                row.add(first);
+                row.addAll(rest);
+                if (row.stream().allMatch(String::isEmpty)) break;
+                rows.add(row);
+                optional(exactString("\n")).parse(ctx);
+            }
+            return rows;
+        };
+    }
+
+    @Test
+    void csv_numericRows_parsesToRowLists() throws ReadException, ParseException {
+        String csv = """
+            65279,1179403647,1463895090
+            3.1415927,2.7182817,1.618034
+            -40,-273.15
+            13,42
+            65537
+            """;
+
+        ParseContext ctx = ParseContext.fromChars(csv);
+        List<List<String>> rows = numericCsvFileParser().parse(ctx);
+
+        assertEquals(5, rows.size());
+
+        List<String> row0 = rows.get(0);
+        assertEquals(3, row0.size());
+        assertEquals("65279", row0.get(0));
+        assertEquals("1179403647", row0.get(1));
+        assertEquals("1463895090", row0.get(2));
+
+        List<String> row1 = rows.get(1);
+        assertEquals(3, row1.size());
+        assertEquals("3.1415927", row1.get(0));
+        assertEquals("2.7182817", row1.get(1));
+        assertEquals("1.618034", row1.get(2));
+
+        List<String> row2 = rows.get(2);
+        assertEquals(2, row2.size());
+        assertEquals("-40", row2.get(0));
+        assertEquals("-273.15", row2.get(1));
+
+        List<String> row3 = rows.get(3);
+        assertEquals(2, row3.size());
+        assertEquals("13", row3.get(0));
+        assertEquals("42", row3.get(1));
+
+        List<String> row4 = rows.get(4);
+        assertEquals(1, row4.size());
+        assertEquals("65537", row4.get(0));
+    }
+
     @Test
     void csv_multilineWithQuotedAndCommaInField_parsesRows() throws ReadException, ParseException {
         String csv = """

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API — Eater-Java</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="docs-nav">
+    <div class="docs-nav-inner">
+      <a class="logo" href="index.html">Eater-Java</a>
+      <div class="docs-nav-links">
+        <a href="index.html">主页</a>
+        <a href="intro.html">介绍</a>
+        <a href="guide.html">指南</a>
+        <a href="examples.html">样例</a>
+        <a href="api.html" class="active">API</a>
+        <a href="https://github.com/ocaso1987/eater-java" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="docs-main">
+    <h1 class="page-title">API</h1>
+    <p class="page-desc">核心类型与 Parsers 门面一览。建议 <code>import static com.github.ocaso1987.eater.Parsers.*;</code></p>
+
+    <h2>核心类型</h2>
+    <table>
+      <thead>
+        <tr><th>类型</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>Parser&lt;R&gt;</code></td><td>解析器接口：<code>R parse(ParseContext context)</code>，消费输入并推进位置。</td></tr>
+        <tr><td><code>ParseContext</code></td><td>解析上下文：<code>getSource()</code>、<code>currentPosition()</code> / <code>setCurrentPosition(int)</code>、<code>getCurrentScope()</code> / <code>enterScope(Object)</code> / <code>exitScope()</code>；不提供源的读取方法。</td></tr>
+        <tr><td><code>ParseScope</code></td><td>解析范围：<code>getParent()</code>、<code>getTarget()</code>、<code>enter(childTarget)</code>、<code>exit()</code>、<code>isRoot()</code>；用于对象源层级解析。</td></tr>
+        <tr><td><code>ParseSource&lt;T&gt;</code></td><td>数据源泛型抽象类，仅暴露 <code>getSource()</code>。</td></tr>
+        <tr><td><code>ByteSource</code></td><td>字节源：getLength、validatePosition、readByte、readBytes、remainingBytes。</td></tr>
+        <tr><td><code>CharSource</code></td><td>字符源：getLength、validatePosition、readChar、readChars、remainingChars。</td></tr>
+        <tr><td><code>ObjectSource</code></td><td>对象源：持有一个 Object，OGNL <code>getValue(expression)</code> / <code>getValue(expression, Class&lt;R&gt;)</code>。</td></tr>
+      </tbody>
+    </table>
+
+    <h2>创建上下文</h2>
+    <ul>
+      <li><strong>字节源</strong>：<code>fromBytes(byte[])</code>、<code>fromBytes(byte[], offset, length)</code>、<code>fromByteBuffer(ByteBuffer)</code>、<code>fromEncodedBytes(text, Charset)</code>、<code>fromEncodedBytesUtf8(text)</code></li>
+      <li><strong>字符源</strong>：<code>fromString(CharSequence)</code>（推荐）、<code>fromChars(CharSequence)</code></li>
+      <li><strong>对象源</strong>：<code>fromObject(root)</code></li>
+    </ul>
+
+    <h2>Parsers 门面</h2>
+    <h3>字节</h3>
+    <p><code>bytes(n)</code>、<code>oneByte()</code>、<code>exactBytes(expected)</code>、<code>bytesUntil(delimiter)</code>、<code>bytesAsString(n, charset)</code>、<code>bytesAsUtf8(n)</code></p>
+    <h3>字符</h3>
+    <p><code>chars(n)</code>、<code>oneChar()</code>、<code>exactString(expected)</code>、<code>charsUntil(delimiter)</code></p>
+    <h3>组合</h3>
+    <p><code>optional(p)</code>、<code>many(p)</code>、<code>many(p1, p2, ...)</code>、<code>choose(p1, p2, ...)</code>、<code>repeat(p, n)</code>、<code>map(p, f)</code></p>
+    <h3>通用</h3>
+    <p><code>peek(p)</code> — 执行解析但不消费输入。</p>
+
+    <h2>异常</h2>
+    <ul>
+      <li><code>ReadException</code>：数据不足、越界等；可 <code>addContextValue</code>，<code>getMessage()</code> 含上下文。</li>
+      <li><code>ParseException</code>：格式或语义错误；同样支持上下文。</li>
+    </ul>
+
+    <h2>包结构</h2>
+    <pre class="pre-block"><code>com.github.ocaso1987.eater
+├── Parser.java, Parsers.java
+├── exception/   (ReadException, ParseException, ContextAwareException)
+├── context/     (ParseContext, ParseScope, ParseSource, ByteSource, CharSource, ObjectSource)
+└── parser/      (ByteParsers, CharParsers, ComboParsers, CommonParsers)</code></pre>
+  </main>
+
+  <footer class="docs-footer">
+    <a href="https://github.com/ocaso1987/eater-java">eater-java</a> · 组合子式解析库
+  </footer>
+</body>
+</html>

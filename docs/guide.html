@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>指南 — Eater-Java</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="docs-nav">
+    <div class="docs-nav-inner">
+      <a class="logo" href="index.html">Eater-Java</a>
+      <div class="docs-nav-links">
+        <a href="index.html">主页</a>
+        <a href="intro.html">介绍</a>
+        <a href="guide.html" class="active">指南</a>
+        <a href="examples.html">样例</a>
+        <a href="api.html">API</a>
+        <a href="https://github.com/ocaso1987/eater-java" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="docs-main">
+    <h1 class="page-title">指南</h1>
+    <p class="page-desc">创建上下文、配置源类型与异常处理。</p>
+
+    <h2>配置：创建上下文</h2>
+    <p><code>ParseContext</code> 不提供源的读取方法，仅持有 <code>getSource()</code>、<code>currentPosition()</code> / <code>setCurrentPosition(int)</code> 以及可选的 <code>currentScope</code>。具体读取由解析器通过 <code>ctx.getSource()</code> 转为 <code>ByteSource</code> / <code>CharSource</code> 后调用其方法。</p>
+
+    <h3>字节源</h3>
+    <ul>
+      <li><code>ParseContext.fromBytes(byte[])</code>、<code>fromBytes(byte[], offset, length)</code></li>
+      <li><code>fromByteBuffer(ByteBuffer)</code></li>
+      <li>字符串按字节编码：<code>fromEncodedBytes(text, Charset)</code>、<code>fromEncodedBytesUtf8(text)</code></li>
+    </ul>
+
+    <h3>字符源</h3>
+    <ul>
+      <li>推荐：<code>ParseContext.fromString(CharSequence)</code>（不经编码，直接字符）</li>
+      <li>或 <code>fromChars(CharSequence)</code></li>
+    </ul>
+
+    <h3>对象源</h3>
+    <ul>
+      <li><code>ParseContext.fromObject(root)</code>：自动设置以 root 为 target 的根 <code>currentScope</code></li>
+      <li>通过 <code>(ObjectSource) ctx.getSource()</code> 调用 <code>getValue(expression)</code> / <code>getValue(expression, Class&lt;R&gt;)</code></li>
+      <li>层级解析：<code>enterScope(childTarget)</code>、<code>exitScope()</code></li>
+    </ul>
+
+    <h2>异常</h2>
+
+    <h3>ReadException</h3>
+    <p>表示数据不足、越界等<strong>读取失败</strong>。可 <code>addContextValue(label, value)</code> 携带诊断信息，<code>getMessage()</code> 会包含上下文。组合子 <code>optional</code>、<code>many</code>、<code>choose</code> 在遇到 <code>ReadException</code> 时会回退位置并返回 null 或尝试下一项。</p>
+
+    <h3>ParseException</h3>
+    <p>表示<strong>格式或语义解析失败</strong>（例如 CSV 未闭合引号、业务校验失败）。同样支持 <code>addContextValue</code>。此类异常不会被 <code>optional</code> 等“吞掉”，会直接向外抛出。</p>
+
+    <h3>类型与强转</h3>
+    <p>解析器需根据当前上下文将 <code>ctx.getSource()</code> 转为 <code>ByteSource</code> 或 <code>CharSource</code> 再调用读方法。在非对应类型源上强转会抛出 <code>ClassCastException</code>。对象源上调用 <code>setCurrentPosition</code> 会抛出 <code>UnsupportedOperationException</code>。</p>
+
+    <p><a href="examples.html">下一步：样例（CSV / JSON）→</a></p>
+  </main>
+
+  <footer class="docs-footer">
+    <a href="https://github.com/ocaso1987/eater-java">eater-java</a> · 组合子式解析库
+  </footer>
+</body>
+</html>

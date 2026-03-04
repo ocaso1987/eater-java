@@ -149,6 +149,10 @@ com.github.ocaso1987.eater
     └── CommonParsers
 ```
 
+## 项目页（GitHub Pages）
+
+文档站位于 **docs/**，包含主页、介绍（下载/开始）、指南（配置/异常）、样例（CSV/JSON）、API。在仓库 **Settings → Pages** 中 Source 选 **Deploy from a branch**、Folder 选 **/docs** 即可发布。详见 `docs/README.md`。
+
 ## 许可证
 
 见项目仓库或根目录许可证文件。
