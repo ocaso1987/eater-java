@@ -6,40 +6,40 @@ import com.github.ocaso1987.eater.context.ParseContext;
 import com.github.ocaso1987.eater.exception.ReadException;
 
 /**
- * 字符/字符串解析：固定长度、精确匹配、按分隔符等。
+ * 字符源解析：固定长度、精确匹配、按分隔符等。
  */
-public final class CharParsers {
+public final class CharSourceParsers {
 
-    private CharParsers() {}
+    private CharSourceParsers() {}
 
     /** 解析恰好 n 个字符，返回字符串。 */
-    public static Parser<String> chars(int n) {
+    public static Parser<String> n(int n) {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
-            int pos = ctx.currentPosition();
+            int pos = ctx.currentReadPosition();
             char[] arr = s.readChars(pos, n);
-            ctx.setCurrentPosition(pos + n);
+            ctx.setCurrentReadPosition(pos + n);
             return new String(arr);
         };
     }
 
     /** 解析一个字符。 */
-    public static Parser<Character> oneChar() {
+    public static Parser<Character> one() {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
-            int pos = ctx.currentPosition();
+            int pos = ctx.currentReadPosition();
             char c = s.readChar(pos);
-            ctx.setCurrentPosition(pos + 1);
+            ctx.setCurrentReadPosition(pos + 1);
             return c;
         };
     }
 
     /** 必须匹配给定字符串，否则抛 {@link ReadException}；匹配时消耗并返回该字符串。 */
-    public static Parser<String> exactString(String expected) {
+    public static Parser<String> expect(String expected) {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
             int n = expected.length();
-            int pos = ctx.currentPosition();
+            int pos = ctx.currentReadPosition();
             if (s.remainingChars(pos) < n) {
                 ReadException ex = new ReadException("insufficient chars for string \"" + expected + "\"");
                 ex.addContextValue("position", pos);
@@ -55,16 +55,16 @@ public final class CharParsers {
                     throw ex;
                 }
             }
-            ctx.setCurrentPosition(pos + n);
+            ctx.setCurrentReadPosition(pos + n);
             return expected;
         };
     }
 
     /** 解析到遇到分隔字符或末尾，返回中间字符串（不包含分隔符）；不消费分隔符。 */
-    public static Parser<String> charsUntil(char delimiter) {
+    public static Parser<String> until(char delimiter) {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
-            int pos = ctx.currentPosition();
+            int pos = ctx.currentReadPosition();
             int count = 0;
             while (s.remainingChars(pos + count) >= 1) {
                 char c = s.readChar(pos + count);
@@ -72,7 +72,7 @@ public final class CharParsers {
                 count++;
             }
             String result = new String(s.readChars(pos, count));
-            ctx.setCurrentPosition(pos + count);
+            ctx.setCurrentReadPosition(pos + count);
             return result;
         };
     }

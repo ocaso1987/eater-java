@@ -35,7 +35,7 @@
     <div class="features-grid">
       <div class="feature-card">
         <h3>多源抽象</h3>
-        <p><code>ParseSource&lt;T&gt;</code> 仅暴露 getSource()；ByteSource、CharSource、ObjectSource 各自提供字节/字符/对象读方法。</p>
+        <p><code>ParseSource&lt;T&gt;</code> 仅暴露 getSource()；ByteSource、CharSource、ValueSource 各自提供字节/字符/对象读方法。</p>
       </div>
       <div class="feature-card">
         <h3>组合子 API</h3>
@@ -43,11 +43,11 @@
       </div>
       <div class="feature-card">
         <h3>位置与回退</h3>
-        <p>currentPosition() / setCurrentPosition(int)，解析失败时可回退；optional 在 ReadException 时自动回退并返回 null。</p>
+        <p>currentReadPosition() / setCurrentReadPosition(int)，解析失败时可回退；optional 在 ReadException 时自动回退并返回 null。</p>
       </div>
       <div class="feature-card">
         <h3>对象源与 Scope</h3>
-        <p>fromObject(root)、enterScope / exitScope，用于层级对象解析与 OGNL 表达式取值。</p>
+        <p>fromObject(root)、enterInputScope / exitInputScope 及 output 方法，用于层级对象解析与 OGNL 表达式取值。</p>
       </div>
     </div>
 
@@ -55,8 +55,8 @@
     <pre class="pre-block"><code>import static com.github.ocaso1987.eater.Parsers.*;
 
 ParseContext ctx = ParseContext.fromChars("hello world");
-String first = exactString("hello").parse(ctx);  // "hello"
-String rest  = exactString(" world").parse(ctx); // " world"</code></pre>
+String first = str_expect("hello").parse(ctx);  // "hello"
+String rest  = str_expect(" world").parse(ctx); // " world"</code></pre>
     <p><a href="intro.html">下载与开始 →</a></p>
   </main>
 

@@ -3,6 +3,7 @@ package com.github.ocaso1987.eater.demo;
 import com.github.ocaso1987.eater.Parser;
 import com.github.ocaso1987.eater.exception.ReadException;
 import com.github.ocaso1987.eater.exception.ParseException;
+import com.github.ocaso1987.eater.exception.WriteException;
 import com.github.ocaso1987.eater.context.CharSource;
 import com.github.ocaso1987.eater.context.ParseContext;
 import org.junit.jupiter.api.Test;
@@ -21,19 +22,19 @@ class JsonParserTest {
     /** 双引号字符串，支持 \\ 与 \" 转义。 */
     static Parser<String> quotedString() {
         return ctx -> {
-            exactString("\"").parse(ctx);
+            str_expect("\"").parse(ctx);
             CharSource s = (CharSource) ctx.getSource();
             StringBuilder sb = new StringBuilder();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                int pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                int pos = ctx.currentReadPosition();
                 char c = s.readChar(pos);
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
                 if (c == '"') break;
                 if (c == '\\') {
-                    if (s.remainingChars(ctx.currentPosition()) < 1) throw new ReadException("unexpected end after backslash");
-                    int next = ctx.currentPosition();
+                    if (s.remainingChars(ctx.currentReadPosition()) < 1) throw new ReadException("unexpected end after backslash");
+                    int next = ctx.currentReadPosition();
                     char n = s.readChar(next);
-                    ctx.setCurrentPosition(next + 1);
+                    ctx.setCurrentReadPosition(next + 1);
                     sb.append(switch (n) {
                         case '"' -> '"';
                         case '\\' -> '\\';
@@ -56,11 +57,11 @@ class JsonParserTest {
     static Parser<Void> skipJsonWs() {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                int pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                int pos = ctx.currentReadPosition();
                 char c = s.readChar(pos);
                 if (c != ' ' && c != '\t' && c != '\n' && c != '\r') break;
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
             }
             return null;
         };
@@ -72,21 +73,21 @@ class JsonParserTest {
         return ctx -> {
             skipJsonWs().parse(ctx);
             CharSource s = (CharSource) ctx.getSource();
-            int pos = ctx.currentPosition();
+            int pos = ctx.currentReadPosition();
             char c = s.readChar(pos);
             if (c == '"') return quotedString().parse(ctx);
             if (c == '{') return jsonObject().parse(ctx);
             if (c == '[') return jsonArray().parse(ctx);
             if (c == 't') {
-                exactString("true").parse(ctx);
+                str_expect("true").parse(ctx);
                 return Boolean.TRUE;
             }
             if (c == 'f') {
-                exactString("false").parse(ctx);
+                str_expect("false").parse(ctx);
                 return Boolean.FALSE;
             }
             if (c == 'n') {
-                exactString("null").parse(ctx);
+                str_expect("null").parse(ctx);
                 return null;
             }
             if (c == '-' || (c >= '0' && c <= '9')) return jsonNumber().parse(ctx);
@@ -98,51 +99,51 @@ class JsonParserTest {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
             StringBuilder sb = new StringBuilder();
-            int pos = ctx.currentPosition();
+            int pos = ctx.currentReadPosition();
             char c = s.readChar(pos);
             if (c == '-') {
                 sb.append(c);
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
             }
-            pos = ctx.currentPosition();
+            pos = ctx.currentReadPosition();
             while (s.remainingChars(pos) >= 1) {
                 c = s.readChar(pos);
                 if (c < '0' || c > '9') break;
                 sb.append(c);
-                ctx.setCurrentPosition(pos + 1);
-                pos = ctx.currentPosition();
+                ctx.setCurrentReadPosition(pos + 1);
+                pos = ctx.currentReadPosition();
             }
             if (sb.length() == 0 || (sb.length() == 1 && sb.charAt(0) == '-'))
                 throw new ReadException("invalid number");
-            pos = ctx.currentPosition();
+            pos = ctx.currentReadPosition();
             if (s.remainingChars(pos) >= 1 && s.readChar(pos) == '.') {
                 sb.append('.');
-                ctx.setCurrentPosition(pos + 1);
-                pos = ctx.currentPosition();
+                ctx.setCurrentReadPosition(pos + 1);
+                pos = ctx.currentReadPosition();
                 while (s.remainingChars(pos) >= 1) {
                     c = s.readChar(pos);
                     if (c < '0' || c > '9') break;
                     sb.append(c);
-                    ctx.setCurrentPosition(pos + 1);
-                    pos = ctx.currentPosition();
+                    ctx.setCurrentReadPosition(pos + 1);
+                    pos = ctx.currentReadPosition();
                 }
             }
-            pos = ctx.currentPosition();
+            pos = ctx.currentReadPosition();
             if (s.remainingChars(pos) >= 1 && (s.readChar(pos) == 'e' || s.readChar(pos) == 'E')) {
                 sb.append((char) s.readChar(pos));
-                ctx.setCurrentPosition(pos + 1);
-                pos = ctx.currentPosition();
+                ctx.setCurrentReadPosition(pos + 1);
+                pos = ctx.currentReadPosition();
                 if (s.remainingChars(pos) >= 1 && (s.readChar(pos) == '+' || s.readChar(pos) == '-')) {
                     sb.append((char) s.readChar(pos));
-                    ctx.setCurrentPosition(pos + 1);
-                    pos = ctx.currentPosition();
+                    ctx.setCurrentReadPosition(pos + 1);
+                    pos = ctx.currentReadPosition();
                 }
                 while (s.remainingChars(pos) >= 1) {
                     c = s.readChar(pos);
                     if (c < '0' || c > '9') break;
                     sb.append(c);
-                    ctx.setCurrentPosition(pos + 1);
-                    pos = ctx.currentPosition();
+                    ctx.setCurrentReadPosition(pos + 1);
+                    pos = ctx.currentReadPosition();
                 }
             }
             String num = sb.toString();
@@ -154,25 +155,25 @@ class JsonParserTest {
 
     static Parser<Map<String, Object>> jsonObject() {
         return ctx -> {
-            exactString("{").parse(ctx);
+            str_expect("{").parse(ctx);
             Map<String, Object> obj = new LinkedHashMap<>();
             skipJsonWs().parse(ctx);
             CharSource s = (CharSource) ctx.getSource();
             boolean first = true;
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                int pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                int pos = ctx.currentReadPosition();
                 if (s.readChar(pos) == '}') {
-                    ctx.setCurrentPosition(pos + 1);
+                    ctx.setCurrentReadPosition(pos + 1);
                     break;
                 }
                 if (!first) {
-                    exactString(",").parse(ctx);
+                    str_expect(",").parse(ctx);
                     skipJsonWs().parse(ctx);
                 }
                 first = false;
                 String key = quotedString().parse(ctx);
                 skipJsonWs().parse(ctx);
-                exactString(":").parse(ctx);
+                str_expect(":").parse(ctx);
                 Object value = jsonValue().parse(ctx);
                 obj.put(key, value);
                 skipJsonWs().parse(ctx);
@@ -183,19 +184,19 @@ class JsonParserTest {
 
     static Parser<List<Object>> jsonArray() {
         return ctx -> {
-            exactString("[").parse(ctx);
+            str_expect("[").parse(ctx);
             List<Object> list = new ArrayList<>();
             skipJsonWs().parse(ctx);
             CharSource s = (CharSource) ctx.getSource();
             boolean first = true;
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                int pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                int pos = ctx.currentReadPosition();
                 if (s.readChar(pos) == ']') {
-                    ctx.setCurrentPosition(pos + 1);
+                    ctx.setCurrentReadPosition(pos + 1);
                     break;
                 }
                 if (!first) {
-                    exactString(",").parse(ctx);
+                    str_expect(",").parse(ctx);
                     skipJsonWs().parse(ctx);
                 }
                 first = false;
@@ -207,28 +208,28 @@ class JsonParserTest {
     }
 
     @Test
-    void json_simpleObjectKeyValues_parsesToMap() throws ReadException, ParseException {
+    void json_simpleObjectKeyValues_parsesToMap() throws ReadException, WriteException, ParseException {
         String json = "{\"name\":\"Alice\",\"age\":\"30\",\"city\":\"Beijing\"}";
-        ParseContext ctx = ParseContext.fromChars(json);
+        ParseContext ctx = ParseContext.fromString(json);
 
-        exactString("{").parse(ctx);
+        str_expect("{").parse(ctx);
         Map<String, String> obj = new LinkedHashMap<>();
         Parser<String> keyParser = quotedString();
         Parser<String> valueParser = quotedString();
 
         CharSource src = (CharSource) ctx.getSource();
         boolean first = true;
-        while (src.remainingChars(ctx.currentPosition()) >= 1) {
+        while (src.remainingChars(ctx.currentReadPosition()) >= 1) {
             if (!first) {
-                if (optional(exactString(",")).parse(ctx) == null) break;
+                if (optional(str_expect(",")).parse(ctx) == null) break;
             }
             first = false;
             String key = keyParser.parse(ctx);
-            exactString(":").parse(ctx);
+            str_expect(":").parse(ctx);
             String value = valueParser.parse(ctx);
             obj.put(key, value);
         }
-        exactString("}").parse(ctx);
+        str_expect("}").parse(ctx);
 
         assertEquals(3, obj.size());
         assertEquals("Alice", obj.get("name"));
@@ -237,7 +238,7 @@ class JsonParserTest {
     }
 
     @Test
-    void json_nestingArrayEscapedQuotes_parsesToMap() throws ReadException, ParseException {
+    void json_nestingArrayEscapedQuotes_parsesToMap() throws ReadException, WriteException, ParseException {
         String json = """
             {
                 "nesting": { "inner object": {} },
@@ -246,7 +247,7 @@ class JsonParserTest {
             }
             """;
 
-        ParseContext ctx = ParseContext.fromChars(json);
+        ParseContext ctx = ParseContext.fromString(json);
         @SuppressWarnings("unchecked")
         Map<String, Object> root = (Map<String, Object>) jsonValue().parse(ctx);
 

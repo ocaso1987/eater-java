@@ -5,6 +5,7 @@ import com.github.ocaso1987.eater.context.CharSource;
 import com.github.ocaso1987.eater.context.ParseContext;
 import com.github.ocaso1987.eater.exception.ParseException;
 import com.github.ocaso1987.eater.exception.ReadException;
+import com.github.ocaso1987.eater.exception.WriteException;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -85,9 +86,36 @@ class SourceCoverageTest {
     }
 
     @Test
-    void parsers_bytesAsString_withCharset() throws ReadException, ParseException {
+    void parsers_bytesAsString_withCharset() throws ReadException, WriteException, ParseException {
         ParseContext ctx = ParseContext.fromBytes("A".getBytes(StandardCharsets.ISO_8859_1));
-        String v = bytesAsString(1, StandardCharsets.ISO_8859_1).parse(ctx);
+        String v = byte_asString(1, StandardCharsets.ISO_8859_1).parse(ctx);
         assertEquals("A", v);
+    }
+
+    @Test
+    void byteSourceParsers_expect_insufficientBytes_throwsReadException() {
+        ParseContext ctx = ParseContext.fromBytes(new byte[]{1, 2});
+        ReadException ex = assertThrows(ReadException.class, () -> byte_expect(new byte[]{1, 2, 3, 4}).parse(ctx));
+        assertTrue(ex.getMessage().contains("insufficient"));
+    }
+
+    @Test
+    void byteSourceParsers_expect_byteMismatch_throwsReadException() {
+        ParseContext ctx = ParseContext.fromBytes(new byte[]{1, 2, 3});
+        ReadException ex = assertThrows(ReadException.class, () -> byte_expect(new byte[]{1, 9, 3}).parse(ctx));
+        assertTrue(ex.getMessage().contains("mismatch"));
+    }
+
+    @Test
+    void byteSourceParsers_until_emptySource_returnsEmpty() throws ReadException, WriteException, ParseException {
+        ParseContext ctx = ParseContext.fromBytes(new byte[0]);
+        byte[] result = byte_until((byte) ',').parse(ctx);
+        assertArrayEquals(new byte[0], result);
+    }
+
+    @Test
+    void parseContext_setCurrentReadPosition_onObjectSource_throwsUnsupportedOperationException() {
+        ParseContext ctx = ParseContext.fromObject(new Object());
+        assertThrows(UnsupportedOperationException.class, () -> ctx.setCurrentReadPosition(0));
     }
 }

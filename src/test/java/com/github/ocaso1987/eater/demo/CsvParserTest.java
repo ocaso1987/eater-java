@@ -3,6 +3,7 @@ package com.github.ocaso1987.eater.demo;
 import com.github.ocaso1987.eater.Parser;
 import com.github.ocaso1987.eater.exception.ParseException;
 import com.github.ocaso1987.eater.exception.ReadException;
+import com.github.ocaso1987.eater.exception.WriteException;
 import com.github.ocaso1987.eater.context.CharSource;
 import com.github.ocaso1987.eater.context.ParseContext;
 import org.junit.jupiter.api.Test;
@@ -20,28 +21,28 @@ class CsvParserTest {
 
     static Parser<String> csvQuotedField() {
         return ctx -> {
-            exactString("\"").parse(ctx);
+            str_expect("\"").parse(ctx);
             CharSource s = (CharSource) ctx.getSource();
             StringBuilder sb = new StringBuilder();
             while (true) {
-                int pos = ctx.currentPosition();
+                int pos = ctx.currentReadPosition();
                 if (s.remainingChars(pos) < 1) {
                     ParseException ex = new ParseException("unclosed quoted field");
                     ex.addContextValue("position", pos);
                     throw ex;
                 }
                 char c = s.readChar(pos);
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
                 if (c != '"') {
                     sb.append(c);
                     continue;
                 }
-                if (s.remainingChars(ctx.currentPosition()) < 1) break;
-                int nextPos = ctx.currentPosition();
+                if (s.remainingChars(ctx.currentReadPosition()) < 1) break;
+                int nextPos = ctx.currentReadPosition();
                 char next = s.readChar(nextPos);
                 if (next == '"') {
                     sb.append('"');
-                    ctx.setCurrentPosition(nextPos + 1);
+                    ctx.setCurrentReadPosition(nextPos + 1);
                 } else {
                     break;
                 }
@@ -54,14 +55,14 @@ class CsvParserTest {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
             StringBuilder sb = new StringBuilder();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                int pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                int pos = ctx.currentReadPosition();
                 char c = s.readChar(pos);
                 if (c == ',' || c == '\n') {
                     break;
                 }
                 sb.append(c);
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
             }
             return sb.toString().trim();
         };
@@ -76,19 +77,19 @@ class CsvParserTest {
     }
 
     static Parser<String> csvFieldThenComma() {
-        return map(many(csvField(), exactString(",")), list -> list.get(0));
+        return map(many(csvField(), str_expect(",")), list -> list.get(0));
     }
 
     static Parser<String> csvUnquotedFieldRestOfLine() {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
             StringBuilder sb = new StringBuilder();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                int pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                int pos = ctx.currentReadPosition();
                 char c = s.readChar(pos);
                 if (c == '\n') break;
                 sb.append(c);
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
             }
             return sb.toString().trim();
         };
@@ -99,10 +100,10 @@ class CsvParserTest {
             String q = optional(csvQuotedField()).parse(ctx);
             String s = q != null ? q : csvUnquotedFieldRestOfLine().parse(ctx);
             CharSource src = (CharSource) ctx.getSource();
-            if (src.remainingChars(ctx.currentPosition()) >= 1) {
-                int p = ctx.currentPosition();
+            if (src.remainingChars(ctx.currentReadPosition()) >= 1) {
+                int p = ctx.currentReadPosition();
                 src.readChar(p);
-                ctx.setCurrentPosition(p + 1);
+                ctx.setCurrentReadPosition(p + 1);
             }
             return s;
         };
@@ -135,7 +136,7 @@ class CsvParserTest {
                 R result = optional(p).parse(ctx);
                 if (result == null) break;
                 list.add(result);
-                if (s.remainingChars(ctx.currentPosition()) < 1) break;
+                if (s.remainingChars(ctx.currentReadPosition()) < 1) break;
             }
             return list;
         };
@@ -166,7 +167,7 @@ class CsvParserTest {
     /** 解析「逗号 + 字段」，返回字段；用于 many 得到后续列。 */
     static Parser<String> commaThenField() {
         return ctx -> {
-            exactString(",").parse(ctx);
+            str_expect(",").parse(ctx);
             return csvUnquotedField().parse(ctx);
         };
     }
@@ -179,7 +180,7 @@ class CsvParserTest {
             List<String> row = new ArrayList<>();
             row.add(first);
             row.addAll(rest);
-            optional(exactString("\n")).parse(ctx);
+            optional(str_expect("\n")).parse(ctx);
             return row;
         };
     }
@@ -189,7 +190,7 @@ class CsvParserTest {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
             List<List<String>> rows = new ArrayList<>();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
                 String first = csvUnquotedField().parse(ctx);
                 List<String> rest = many(commaThenField()).parse(ctx);
                 List<String> row = new ArrayList<>();
@@ -197,14 +198,14 @@ class CsvParserTest {
                 row.addAll(rest);
                 if (row.stream().allMatch(String::isEmpty)) break;
                 rows.add(row);
-                optional(exactString("\n")).parse(ctx);
+                optional(str_expect("\n")).parse(ctx);
             }
             return rows;
         };
     }
 
     @Test
-    void csv_numericRows_parsesToRowLists() throws ReadException, ParseException {
+    void csv_numericRows_parsesToRowLists() throws ReadException, WriteException, ParseException {
         String csv = """
             65279,1179403647,1463895090
             3.1415927,2.7182817,1.618034
@@ -213,7 +214,7 @@ class CsvParserTest {
             65537
             """;
 
-        ParseContext ctx = ParseContext.fromChars(csv);
+        ParseContext ctx = ParseContext.fromString(csv);
         List<List<String>> rows = numericCsvFileParser().parse(ctx);
 
         assertEquals(5, rows.size());
@@ -246,7 +247,7 @@ class CsvParserTest {
     }
 
     @Test
-    void csv_multilineWithQuotedAndCommaInField_parsesRows() throws ReadException, ParseException {
+    void csv_multilineWithQuotedAndCommaInField_parsesRows() throws ReadException, WriteException, ParseException {
         String csv = """
             name,age,city,active,note
             Alice,30,"Beijing",true,"lives in capital"
@@ -255,7 +256,7 @@ class CsvParserTest {
             line note"
             """;
 
-        ParseContext ctx = ParseContext.fromChars(csv);
+        ParseContext ctx = ParseContext.fromString(csv);
         List<CsvRow> result = csvFileParser().parse(ctx);
 
         assertEquals(3, result.size());

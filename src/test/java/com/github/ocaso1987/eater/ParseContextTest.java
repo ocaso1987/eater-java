@@ -2,7 +2,7 @@ package com.github.ocaso1987.eater;
 
 import com.github.ocaso1987.eater.context.ByteSource;
 import com.github.ocaso1987.eater.context.CharSource;
-import com.github.ocaso1987.eater.context.ObjectSource;
+import com.github.ocaso1987.eater.context.ValueTarget;
 import com.github.ocaso1987.eater.context.ParseContext;
 import com.github.ocaso1987.eater.context.ParseScope;
 import com.github.ocaso1987.eater.exception.ReadException;
@@ -13,14 +13,14 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** ParseContext 工厂、currentScope、enterScope/exitScope 及 ParseScope、ObjectSource 的覆盖率测试。 */
-class ParseContextAndScopeTest {
+/** ParseContext 工厂、currentInputScope、enterInputScope/exitInputScope 及 ParseScope、ValueTarget 的覆盖率测试。 */
+class ParseContextTest {
 
     @Test
     void fromObject_initialScopeIsRootWithTarget() {
         Object root = new Object();
         ParseContext ctx = ParseContext.fromObject(root);
-        ParseScope scope = ctx.getCurrentScope();
+        ParseScope scope = ctx.getCurrentInputScope();
         assertNotNull(scope);
         assertTrue(scope.isRoot());
         assertNull(scope.getParent());
@@ -28,64 +28,64 @@ class ParseContextAndScopeTest {
     }
 
     @Test
-    void enterScope_whenNull_createsRootScope() {
+    void enterInputScope_whenNull_createsRootScope() {
         ParseContext ctx = ParseContext.fromBytes(new byte[]{1});
-        assertNull(ctx.getCurrentScope());
-        ParseScope entered = ctx.enterScope("child");
+        assertNull(ctx.getCurrentInputScope());
+        ParseScope entered = ctx.enterInputScope("child");
         assertNotNull(entered);
         assertTrue(entered.isRoot());
         assertSame("child", entered.getTarget());
-        assertSame(entered, ctx.getCurrentScope());
+        assertSame(entered, ctx.getCurrentInputScope());
     }
 
     @Test
-    void enterScope_whenHasScope_createsChildScope() {
+    void enterInputScope_whenHasScope_createsChildScope() {
         ParseContext ctx = ParseContext.fromObject("root");
-        ParseScope root = ctx.getCurrentScope();
-        ParseScope child = ctx.enterScope("child");
+        ParseScope root = ctx.getCurrentInputScope();
+        ParseScope child = ctx.enterInputScope("child");
         assertFalse(child.isRoot());
         assertSame(root, child.getParent());
         assertSame("child", child.getTarget());
-        assertSame(child, ctx.getCurrentScope());
-        ctx.enterScope("grandchild");
-        ParseScope grand = ctx.getCurrentScope();
+        assertSame(child, ctx.getCurrentInputScope());
+        ctx.enterInputScope("grandchild");
+        ParseScope grand = ctx.getCurrentInputScope();
         assertSame(child, grand.getParent());
         assertSame("grandchild", grand.getTarget());
     }
 
     @Test
-    void exitScope_returnsToParent() {
+    void exitInputScope_returnsToParent() {
         ParseContext ctx = ParseContext.fromObject("root");
-        ctx.enterScope("a");
-        ctx.enterScope("b");
-        assertEquals("b", ctx.getCurrentScope().getTarget());
-        ctx.exitScope();
-        assertEquals("a", ctx.getCurrentScope().getTarget());
-        ctx.exitScope();
-        assertEquals("root", ctx.getCurrentScope().getTarget());
-        ctx.exitScope();
-        assertNull(ctx.getCurrentScope());
+        ctx.enterInputScope("a");
+        ctx.enterInputScope("b");
+        assertEquals("b", ctx.getCurrentInputScope().getTarget());
+        ctx.exitInputScope();
+        assertEquals("a", ctx.getCurrentInputScope().getTarget());
+        ctx.exitInputScope();
+        assertEquals("root", ctx.getCurrentInputScope().getTarget());
+        ctx.exitInputScope();
+        assertNull(ctx.getCurrentInputScope());
     }
 
     @Test
-    void exitScope_whenNull_staysNull() {
-        ParseContext ctx = ParseContext.fromChars("x");
-        ctx.exitScope();
-        assertNull(ctx.getCurrentScope());
+    void exitInputScope_whenNull_staysNull() {
+        ParseContext ctx = ParseContext.fromString("x");
+        ctx.exitInputScope();
+        assertNull(ctx.getCurrentInputScope());
     }
 
     @Test
-    void setCurrentScope() {
-        ParseContext ctx = ParseContext.fromChars("ab");
+    void setCurrentInputScope() {
+        ParseContext ctx = ParseContext.fromString("ab");
         ParseScope scope = new ParseScope(null, "custom");
-        ctx.setCurrentScope(scope);
-        assertSame(scope, ctx.getCurrentScope());
+        ctx.setCurrentInputScope(scope);
+        assertSame(scope, ctx.getCurrentInputScope());
     }
 
     @Test
-    void setCurrentPosition_onObjectSource_throwsUnsupportedOperationException() {
+    void setCurrentReadPosition_onValueTarget_throwsUnsupportedOperationException() {
         ParseContext ctx = ParseContext.fromObject(new Object());
-        assertThrows(UnsupportedOperationException.class, () -> ctx.setCurrentPosition(0));
+        assertThrows(UnsupportedOperationException.class, () -> ctx.setCurrentReadPosition(0));
     }
 
     @Test

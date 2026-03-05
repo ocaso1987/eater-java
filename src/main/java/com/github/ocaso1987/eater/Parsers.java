@@ -1,9 +1,13 @@
 package com.github.ocaso1987.eater;
 
-import com.github.ocaso1987.eater.parser.ByteParsers;
-import com.github.ocaso1987.eater.parser.CharParsers;
+import com.github.ocaso1987.eater.parser.ByteSinkParsers;
+import com.github.ocaso1987.eater.parser.ByteSourceParsers;
+import com.github.ocaso1987.eater.parser.CharSinkParsers;
+import com.github.ocaso1987.eater.parser.CharSourceParsers;
 import com.github.ocaso1987.eater.parser.ComboParsers;
 import com.github.ocaso1987.eater.parser.CommonParsers;
+import com.github.ocaso1987.eater.parser.StringParsers;
+import com.github.ocaso1987.eater.parser.ValueTargetParsers;
 
 import java.nio.charset.Charset;
 import java.util.List;
@@ -18,46 +22,95 @@ public final class Parsers {
 
     // ---------- 字节 ----------
 
-    public static Parser<byte[]> bytes(int n) {
-        return ByteParsers.bytes(n);
+    public static Parser<byte[]> byte_n(int n) {
+        return ByteSourceParsers.n(n);
     }
 
-    public static Parser<byte[]> oneByte() {
-        return ByteParsers.oneByte();
+    public static Parser<byte[]> byte_one() {
+        return ByteSourceParsers.one();
     }
 
-    public static Parser<byte[]> exactBytes(byte[] expected) {
-        return ByteParsers.exactBytes(expected);
+    public static Parser<byte[]> byte_expect(byte[] expected) {
+        return ByteSourceParsers.expect(expected);
     }
 
-    public static Parser<byte[]> bytesUntil(byte delimiter) {
-        return ByteParsers.bytesUntil(delimiter);
+    public static Parser<byte[]> byte_until(byte delimiter) {
+        return ByteSourceParsers.until(delimiter);
     }
 
-    public static Parser<String> bytesAsString(int n, Charset charset) {
-        return ByteParsers.bytesAsString(n, charset);
+    // ---------- 字节汇（写） ----------
+
+    public static Parser<byte[]> byte_sink_one(byte b) {
+        return ByteSinkParsers.one(b);
     }
 
-    public static Parser<String> bytesAsUtf8(int n) {
-        return ByteParsers.bytesAsUtf8(n);
+    public static Parser<byte[]> byte_sink_n(byte[] data) {
+        return ByteSinkParsers.n(data);
     }
 
-    // ---------- 字符 ----------
-
-    public static Parser<String> chars(int n) {
-        return CharParsers.chars(n);
+    public static Parser<byte[]> byte_sink_write(byte[] data) {
+        return ByteSinkParsers.write(data);
     }
 
-    public static Parser<Character> oneChar() {
-        return CharParsers.oneChar();
+    public static Parser<byte[]> byte_sink_write(byte[] src, int offset, int length) {
+        return ByteSinkParsers.write(src, offset, length);
     }
 
-    public static Parser<String> exactString(String expected) {
-        return CharParsers.exactString(expected);
+    public static Parser<String> byte_asString(int n, Charset charset) {
+        return StringParsers.asStr(n, charset);
     }
 
-    public static Parser<String> charsUntil(char delimiter) {
-        return CharParsers.charsUntil(delimiter);
+    public static Parser<String> byte_utf8(int n) {
+        return StringParsers.asUtf8(n);
+    }
+
+    // ---------- 字符/字符串 ----------
+
+    /** 从 CharSource 读取 n 个字符为字符串。 */
+    public static Parser<String> str_n(int n) {
+        return CharSourceParsers.n(n);
+    }
+
+    public static Parser<Character> char_one() {
+        return CharSourceParsers.one();
+    }
+
+    public static Parser<String> str_expect(String expected) {
+        return CharSourceParsers.expect(expected);
+    }
+
+    public static Parser<String> str_until(char delimiter) {
+        return CharSourceParsers.until(delimiter);
+    }
+
+    // ---------- 字符汇（写） ----------
+
+    public static Parser<Character> char_sink_one(char c) {
+        return CharSinkParsers.one(c);
+    }
+
+    public static Parser<String> char_sink_n(String s) {
+        return CharSinkParsers.n(s);
+    }
+
+    public static Parser<String> char_sink_write(String data) {
+        return CharSinkParsers.write(data);
+    }
+
+    public static Parser<String> char_sink_write(char[] chars, int offset, int length) {
+        return CharSinkParsers.write(chars, offset, length);
+    }
+
+    // ---------- 值源 ----------
+
+    /** 按 OGNL 表达式从 ValueTarget 取值。 */
+    public static Parser<Object> val(String expression) {
+        return ValueTargetParsers.value(expression);
+    }
+
+    /** 按 OGNL 表达式从 ValueTarget 取值并转为指定类型。 */
+    public static <R> Parser<R> val(String expression, Class<R> type) {
+        return ValueTargetParsers.value(expression, type);
     }
 
     // ---------- 组合 ----------
@@ -92,5 +145,10 @@ public final class Parsers {
 
     public static <R> Parser<R> peek(Parser<R> p) {
         return CommonParsers.peek(p);
+    }
+
+    /** 与 peek 相同（执行 p 但不消费输入），区别是遇到 ParseException 时也恢复位置并返回 null。 */
+    public static <R> Parser<R> peekAny(Parser<R> p) {
+        return CommonParsers.peekAny(p);
     }
 }

@@ -3,6 +3,7 @@ package com.github.ocaso1987.eater.demo;
 import com.github.ocaso1987.eater.Parser;
 import com.github.ocaso1987.eater.exception.ParseException;
 import com.github.ocaso1987.eater.exception.ReadException;
+import com.github.ocaso1987.eater.exception.WriteException;
 import com.github.ocaso1987.eater.context.CharSource;
 import com.github.ocaso1987.eater.context.ParseContext;
 import org.junit.jupiter.api.Test;
@@ -20,10 +21,10 @@ class IniParserTest {
     static Parser<Void> skipRestOfLine() {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                int pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                int pos = ctx.currentReadPosition();
                 char c = s.readChar(pos);
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
                 if (c == '\n') return null;
             }
             return null;
@@ -34,11 +35,11 @@ class IniParserTest {
     static Parser<Void> skipSpaces() {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                int pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                int pos = ctx.currentReadPosition();
                 char c = s.readChar(pos);
                 if (c != ' ' && c != '\t') break;
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
             }
             return null;
         };
@@ -48,43 +49,43 @@ class IniParserTest {
     static Parser<Map.Entry<String, String>> keyValueLine() {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
-            int start = ctx.currentPosition();
+            int start = ctx.currentReadPosition();
             skipSpaces().parse(ctx);
-            if (s.remainingChars(ctx.currentPosition()) < 1) return null;
-            int pos = ctx.currentPosition();
+            if (s.remainingChars(ctx.currentReadPosition()) < 1) return null;
+            int pos = ctx.currentReadPosition();
             char c = s.readChar(pos);
             if (c == '\n' || c == '[') {
-                if (c == '\n') ctx.setCurrentPosition(pos + 1);
+                if (c == '\n') ctx.setCurrentReadPosition(pos + 1);
                 return null;
             }
             StringBuilder key = new StringBuilder();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                pos = ctx.currentReadPosition();
                 c = s.readChar(pos);
                 if (c == '=' || c == '\n') break;
                 key.append(c);
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
             }
             String keyStr = key.toString().trim();
             if (keyStr.isEmpty()) {
                 skipRestOfLine().parse(ctx);
                 return null;
             }
-            if (s.remainingChars(ctx.currentPosition()) < 1 || s.readChar(ctx.currentPosition()) != '=') {
+            if (s.remainingChars(ctx.currentReadPosition()) < 1 || s.readChar(ctx.currentReadPosition()) != '=') {
                 skipRestOfLine().parse(ctx);
                 return null;
             }
-            ctx.setCurrentPosition(ctx.currentPosition() + 1);
+            ctx.setCurrentReadPosition(ctx.currentReadPosition() + 1);
             skipSpaces().parse(ctx);
             StringBuilder value = new StringBuilder();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                pos = ctx.currentReadPosition();
                 c = s.readChar(pos);
                 if (c == '\n') break;
                 value.append(c);
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
             }
-            if (s.remainingChars(ctx.currentPosition()) >= 1) ctx.setCurrentPosition(ctx.currentPosition() + 1);
+            if (s.remainingChars(ctx.currentReadPosition()) >= 1) ctx.setCurrentReadPosition(ctx.currentReadPosition() + 1);
             return Map.entry(keyStr, value.toString().trim());
         };
     }
@@ -94,23 +95,23 @@ class IniParserTest {
         return ctx -> {
             CharSource s = (CharSource) ctx.getSource();
             skipSpaces().parse(ctx);
-            if (s.remainingChars(ctx.currentPosition()) < 2) return null;
-            int pos = ctx.currentPosition();
+            if (s.remainingChars(ctx.currentReadPosition()) < 2) return null;
+            int pos = ctx.currentReadPosition();
             if (s.readChar(pos) != '[') return null;
             pos++;
-            ctx.setCurrentPosition(pos);
+            ctx.setCurrentReadPosition(pos);
             StringBuilder name = new StringBuilder();
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
-                pos = ctx.currentPosition();
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                pos = ctx.currentReadPosition();
                 char c = s.readChar(pos);
                 if (c == ']') {
-                    ctx.setCurrentPosition(pos + 1);
+                    ctx.setCurrentReadPosition(pos + 1);
                     skipRestOfLine().parse(ctx);
                     return name.toString().trim();
                 }
                 if (c == '\n') break;
                 name.append(c);
-                ctx.setCurrentPosition(pos + 1);
+                ctx.setCurrentReadPosition(pos + 1);
             }
             return null;
         };
@@ -124,7 +125,7 @@ class IniParserTest {
             Map<String, String> current = new LinkedHashMap<>();
             sections.put("", current);
 
-            while (s.remainingChars(ctx.currentPosition()) >= 1) {
+            while (s.remainingChars(ctx.currentReadPosition()) >= 1) {
                 String section = optional(sectionHeader()).parse(ctx);
                 if (section != null) {
                     current = new LinkedHashMap<>();
@@ -137,10 +138,10 @@ class IniParserTest {
                     continue;
                 }
                 skipSpaces().parse(ctx);
-                if (s.remainingChars(ctx.currentPosition()) >= 1) {
-                    char next = s.readChar(ctx.currentPosition());
+                if (s.remainingChars(ctx.currentReadPosition()) >= 1) {
+                    char next = s.readChar(ctx.currentReadPosition());
                     if (next == '\n') {
-                        ctx.setCurrentPosition(ctx.currentPosition() + 1);
+                        ctx.setCurrentReadPosition(ctx.currentReadPosition() + 1);
                     } else if (next != '[') {
                         skipRestOfLine().parse(ctx);
                     }
@@ -151,7 +152,7 @@ class IniParserTest {
     }
 
     @Test
-    void ini_multipleSectionsAndGlobalKeys_parsesToMap() throws ReadException, ParseException {
+    void ini_multipleSectionsAndGlobalKeys_parsesToMap() throws ReadException, WriteException, ParseException {
         String ini = """
             username = noha
             password = plain_text
@@ -170,7 +171,7 @@ class IniParserTest {
             interface=eth1
             """;
 
-        ParseContext ctx = ParseContext.fromChars(ini);
+        ParseContext ctx = ParseContext.fromString(ini);
         Map<String, Map<String, String>> sections = iniFile().parse(ctx);
 
         Map<String, String> global = sections.get("");

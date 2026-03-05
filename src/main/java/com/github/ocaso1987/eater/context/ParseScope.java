@@ -4,7 +4,7 @@ import java.util.Objects;
 
 /**
  * 解析范围：表示对象源解析时的当前“位置”，即当前正在解析的 target 对象及其父级链。
- * 用于 {@link ObjectSource}：根 scope 的 target 为根对象，进入下级属性时创建子 scope（parent 指向当前 scope），
+ * 用于 {@link ValueTarget}：根 scope 的 target 为根对象，进入下级属性时创建子 scope（parent 指向当前 scope），
  * 子 scope 解析完成后退出并回到父 scope 继续解析。
  */
 public final class ParseScope {

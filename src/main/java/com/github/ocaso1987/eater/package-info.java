@@ -4,6 +4,6 @@
  * 失败时抛出 {@link com.github.ocaso1987.eater.exception.ReadException} 或
  * {@link com.github.ocaso1987.eater.exception.ParseException}。
  * 使用 {@link com.github.ocaso1987.eater.Parsers} 组合解析器，例如
- * {@code ParseContext.fromChars(text)} 配合 {@code import static Parsers.*}。
+ * {@code ParseContext.fromString(text)} 配合 {@code import static Parsers.*}。
  */
 package com.github.ocaso1987.eater;

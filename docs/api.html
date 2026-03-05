@@ -32,12 +32,12 @@
       </thead>
       <tbody>
         <tr><td><code>Parser&lt;R&gt;</code></td><td>解析器接口：<code>R parse(ParseContext context)</code>，消费输入并推进位置。</td></tr>
-        <tr><td><code>ParseContext</code></td><td>解析上下文：<code>getSource()</code>、<code>currentPosition()</code> / <code>setCurrentPosition(int)</code>、<code>getCurrentScope()</code> / <code>enterScope(Object)</code> / <code>exitScope()</code>；不提供源的读取方法。</td></tr>
+        <tr><td><code>ParseContext</code></td><td>解析上下文：<code>getSource()</code>、<code>currentReadPosition()</code> / <code>setCurrentReadPosition(int)</code>、<code>currentWritePosition()</code> / <code>setCurrentWritePosition(int)</code>、<code>getCurrentInputScope()</code> / <code>enterInputScope(Object)</code> / <code>exitInputScope()</code> 及对应的 output 方法；不提供源的读取方法。</td></tr>
         <tr><td><code>ParseScope</code></td><td>解析范围：<code>getParent()</code>、<code>getTarget()</code>、<code>enter(childTarget)</code>、<code>exit()</code>、<code>isRoot()</code>；用于对象源层级解析。</td></tr>
         <tr><td><code>ParseSource&lt;T&gt;</code></td><td>数据源泛型抽象类，仅暴露 <code>getSource()</code>。</td></tr>
         <tr><td><code>ByteSource</code></td><td>字节源：getLength、validatePosition、readByte、readBytes、remainingBytes。</td></tr>
         <tr><td><code>CharSource</code></td><td>字符源：getLength、validatePosition、readChar、readChars、remainingChars。</td></tr>
-        <tr><td><code>ObjectSource</code></td><td>对象源：持有一个 Object，OGNL <code>getValue(expression)</code> / <code>getValue(expression, Class&lt;R&gt;)</code>。</td></tr>
+        <tr><td><code>ValueSource</code></td><td>对象源：持有一个 Object，OGNL <code>getValue(expression)</code> / <code>getValue(expression, Class&lt;R&gt;)</code>。</td></tr>
       </tbody>
     </table>
 
@@ -50,9 +50,11 @@
 
     <h2>Parsers 门面</h2>
     <h3>字节</h3>
-    <p><code>bytes(n)</code>、<code>oneByte()</code>、<code>exactBytes(expected)</code>、<code>bytesUntil(delimiter)</code>、<code>bytesAsString(n, charset)</code>、<code>bytesAsUtf8(n)</code></p>
+    <p><code>byte_n(n)</code>、<code>byte_one()</code>、<code>byte_expect(expected)</code>、<code>byte_until(delimiter)</code>、<code>byte_asString(n, charset)</code>、<code>byte_utf8(n)</code></p>
     <h3>字符</h3>
-    <p><code>chars(n)</code>、<code>oneChar()</code>、<code>exactString(expected)</code>、<code>charsUntil(delimiter)</code></p>
+    <p><code>str_n(n)</code>、<code>char_one()</code>、<code>str_expect(expected)</code>、<code>str_until(delimiter)</code></p>
+    <h3>值源</h3>
+    <p><code>val(expression)</code>、<code>val(expression, Class&lt;R&gt;)</code></p>
     <h3>组合</h3>
     <p><code>optional(p)</code>、<code>many(p)</code>、<code>many(p1, p2, ...)</code>、<code>choose(p1, p2, ...)</code>、<code>repeat(p, n)</code>、<code>map(p, f)</code></p>
     <h3>通用</h3>
@@ -68,8 +70,8 @@
     <pre class="pre-block"><code>com.github.ocaso1987.eater
 ├── Parser.java, Parsers.java
 ├── exception/   (ReadException, ParseException, ContextAwareException)
-├── context/     (ParseContext, ParseScope, ParseSource, ByteSource, CharSource, ObjectSource)
-└── parser/      (ByteParsers, CharParsers, ComboParsers, CommonParsers)</code></pre>
+├── context/     (ParseContext, ParseScope, ParseSource, ByteSource, CharSource, ValueSource)
+└── parser/      (ByteSourceParsers, CharSourceParsers, ValueTargetParsers, ComboParsers, CommonParsers)</code></pre>
   </main>
 
   <footer class="docs-footer">

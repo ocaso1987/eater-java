@@ -6,11 +6,11 @@ import ognl.Ognl;
 import ognl.OgnlException;
 
 /**
- * 对象源：持有一个 Java 普通 Object 作为根对象，使用 OGNL 进行管理以支持按表达式快速读取。
+ * 值目标：持有一个 Java 普通 Object 作为根对象，使用 OGNL 进行管理以支持按表达式快速读取。
  */
-public final class ObjectSource extends ParseSource<Object> {
+public final class ValueTarget extends ParseTarget<Object> {
 
-    public ObjectSource(Object root) {
+    public ValueTarget(Object root) {
         super(root);
     }
 
@@ -24,7 +24,7 @@ public final class ObjectSource extends ParseSource<Object> {
     public Object getValue(String expression) throws ReadException {
         try {
             Object tree = Ognl.parseExpression(expression);
-            return Ognl.getValue(tree, getSource());
+            return Ognl.getValue(tree, getTarget());
         } catch (OgnlException e) {
             ReadException ex = new ReadException("OGNL getValue failed: " + e.getMessage(), e);
             ex.addContextValue("expression", expression);

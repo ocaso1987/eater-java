@@ -51,33 +51,33 @@ import static com.github.ocaso1987.eater.Parsers.*;
 
 ParseContext ctx = ParseContext.fromChars("hello world");
 
-String first = exactString("hello").parse(ctx);   // "hello"
-String rest = exactString(" world").parse(ctx);  // " world"
+String first = str_expect("hello").parse(ctx);   // "hello"
+String rest = str_expect(" world").parse(ctx);  // " world"
 
-Parser&lt;List&lt;String&gt;&gt; p = many(exactString("hello"), exactString(" world"));
+Parser&lt;List&lt;String&gt;&gt; p = many(str_expect("hello"), str_expect(" world"));
 List&lt;String&gt; list = p.parse(ctx);</code></pre>
 
     <h3>字节解析</h3>
     <pre class="pre-block"><code>byte[] data = "Hi".getBytes(StandardCharsets.UTF_8);
 ParseContext ctx = ParseContext.fromBytes(data);
 
-byte[] raw = bytes(2).parse(ctx);
-String s = bytesAsUtf8(2).parse(ctx);
+byte[] raw = byte_n(2).parse(ctx);
+String s = byte_utf8(2).parse(ctx);
 
 // 魔数 + 长度 + 负载
-byte[] magic = exactBytes("DEMO".getBytes(StandardCharsets.UTF_8)).parse(ctx);
-byte[] lenBytes = bytes(4).parse(ctx);
+byte[] magic = byte_expect("DEMO".getBytes(StandardCharsets.UTF_8)).parse(ctx);
+byte[] lenBytes = byte_n(4).parse(ctx);
 int len = /* 小端解析 lenBytes */;
-byte[] payload = bytes(len).parse(ctx);</code></pre>
+byte[] payload = byte_n(len).parse(ctx);</code></pre>
 
     <h3>可选与多选</h3>
-    <pre class="pre-block"><code>String maybe = optional(exactString("prefix")).parse(ctx);
+    <pre class="pre-block"><code>String maybe = optional(str_expect("prefix")).parse(ctx);
 
-Parser&lt;String&gt; p = choose(exactString("a"), exactString("ab"), exactString("abc"));
+Parser&lt;String&gt; p = choose(str_expect("a"), str_expect("ab"), str_expect("abc"));
 String matched = p.parse(ctx);
 
-List&lt;String&gt; three = repeat(map(oneChar(), c -&gt; String.valueOf(c)), 3).parse(ctx);
-Parser&lt;Integer&gt; num = map(chars(3), s -&gt; Integer.parseInt(s));</code></pre>
+List&lt;String&gt; three = repeat(map(char_one(), c -&gt; String.valueOf(c)), 3).parse(ctx);
+Parser&lt;Integer&gt; num = map(str_n(3), s -&gt; Integer.parseInt(s));</code></pre>
 
     <p><a href="guide.html">下一步：指南（配置与异常）→</a></p>
   </main>
